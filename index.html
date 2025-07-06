@@ -28,6 +28,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       cursor: pointer;
       display: none;
+      z-index: 10;
     }
     #scoreDisplay {
       position: absolute;
@@ -39,6 +40,7 @@
       background-color: rgba(0,0,0,0.5);
       padding: 5px 10px;
       border-radius: 5px;
+      z-index: 10;
     }
   </style>
 </head>
@@ -62,29 +64,30 @@
     const obstacleImg = new Image();
     obstacleImg.src = 'obstacle.png';
 
-    const groundHeight = 100;
-    const gravity = 0.8;
+    const groundHeight = canvas.height * 0.15;
+    const gravity = 0.9;
     let gameSpeed = 6;
     let score = 0;
     let gameOver = false;
 
     const player = {
-      x: 100,
-      y: canvas.height - groundHeight - 100,
-      width: 80,
-      height: 80,
+      width: canvas.height * 0.12,
+      height: canvas.height * 0.12,
+      x: canvas.width * 0.1,
+      y: canvas.height - groundHeight - canvas.height * 0.12,
       velocityY: 0,
       isJumping: false,
       draw() {
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 15;
         ctx.drawImage(irysImg, this.x, this.y, this.width, this.height);
         ctx.restore();
       },
       update() {
         this.velocityY += gravity;
         this.y += this.velocityY;
+
         if (this.y > canvas.height - groundHeight - this.height) {
           this.y = canvas.height - groundHeight - this.height;
           this.velocityY = 0;
@@ -93,7 +96,7 @@
       },
       jump() {
         if (!this.isJumping) {
-          this.velocityY = -18;
+          this.velocityY = -20;
           this.isJumping = true;
         }
       }
@@ -110,7 +113,7 @@
     let obstacles = [];
 
     function createObstacle() {
-      const size = 80;
+      const size = canvas.height * 0.1;
       obstacles.push({
         x: canvas.width,
         y: canvas.height - groundHeight - size,
@@ -126,7 +129,7 @@
     }
 
     function handleObstacles() {
-      if (Math.random() < 0.02) {
+      if (Math.random() < 0.015) {
         createObstacle();
       }
 
