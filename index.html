@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IRyS Jump Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+      background: url('background.png') no-repeat center center;
+      background-size: cover;
+    }
+    #retryButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 12px 24px;
+      font-size: 20px;
+      background-color: #fff;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      cursor: pointer;
+      display: none;
+    }
+    #scoreDisplay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 20px;
+      color: white;
+      background-color: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="scoreDisplay">Score: 0</div>
+  <button id="retryButton">Retry</button>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const irysImg = new Image();
+    irysImg.src = 'irys.png';
+
+    const groundImg = new Image();
+    groundImg.src = 'ground.png';
+
+    const obstacleImg = new Image();
+    obstacleImg.src = 'obstacle.png';
+
+    const groundHeight = 100;
+    const gravity = 0.8;
+    let gameSpeed = 6;
+    let score = 0;
+    let gameOver = false;
+
+    const player = {
+      x: 100,
+      y: canvas.height - groundHeight - 100,
+      width: 80,
+      height: 80,
+      velocityY: 0,
+      isJumping: false,
+      draw() {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = 20;
+        ctx.drawImage(irysImg, this.x, this.y, this.width, this.height);
+        ctx.restore();
+      },
+      update() {
+        this.velocityY += gravity;
+        this.y += this.velocityY;
+        if (this.y > canvas.height - groundHeight - this.height) {
+          this.y = canvas.height - groundHeight - this.height;
+          this.velocityY = 0;
+          this.isJumping = false;
+        }
+      },
+      jump() {
+        if (!this.isJumping) {
+          this.velocityY = -18;
+          this.isJumping = true;
+        }
+      }
+    };
+
+    const ground = {
+      draw() {
+        const pattern = ctx.createPattern(groundImg, 'repeat-x');
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+      }
+    };
+
+    let obstacles = [];
+
+    function createObstacle() {
+      const size = 80;
+      obstacles.push({
+        x: canvas.width,
+        y: canvas.height - groundHeight - size,
+        width: size,
+        height: size,
+        draw() {
+          ctx.drawImage(obstacleImg, this.x, this.y, this.width, this.height);
+        },
+        update() {
+          this.x -= gameSpeed;
+        }
+      });
+    }
+
+    function handleObstacles() {
+      if (Math.random() < 0.02) {
+        createObstacle();
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.update();
+        obs.draw();
+
+        if (obs.x + obs.width < 0) {
+          obstacles.splice(i, 1);
+          score++;
+          gameSpeed += 0.05;
+        }
+
+        if (
+          player.x < obs.x + obs.width &&
+          player.x + player.width > obs.x &&
+          player.y < obs.y + obs.height &&
+          player.y + player.height > obs.y
+        ) {
+          gameOver = true;
+        }
+      }
+    }
+
+    function showScore() {
+      document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+    }
+
+    function showRetryButton() {
+      document.getElementById('retryButton').style.display = 'block';
+    }
+
+    function resetGame() {
+      score = 0;
+      gameOver = false;
+      gameSpeed = 6;
+      obstacles = [];
+      player.y = canvas.height - groundHeight - player.height;
+      document.getElementById('retryButton').style.display = 'none';
+      animate();
+    }
+
+    function animate() {
+      if (gameOver) {
+        showRetryButton();
+        return;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ground.draw();
+      player.update();
+      player.draw();
+      handleObstacles();
+      showScore();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        player.jump();
+      }
+    });
+
+    canvas.addEventListener('click', () => {
+      player.jump();
+    });
+
+    document.getElementById('retryButton').addEventListener('click', resetGame);
+  </script>
+</body>
+</html>
