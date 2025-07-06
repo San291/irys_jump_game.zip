@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,198 +9,205 @@
     body {
       margin: 0;
       overflow: hidden;
-      background: #000;
+      font-family: sans-serif;
+      background: #87CEEB;
     }
+
     canvas {
       display: block;
-      background: url('background.png') no-repeat center center;
-      background-size: cover;
     }
-    #retryButton {
+
+    #score, #lives {
+      position: absolute;
+      top: 10px;
+      padding: 5px 15px;
+      border-radius: 10px;
+      background-color: rgba(0,0,0,0.4);
+      color: white;
+      font-size: 20px;
+      z-index: 10;
+    }
+
+    #score { left: 10px; }
+    #lives { right: 10px; }
+
+    #retry {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      padding: 12px 24px;
-      font-size: 20px;
-      background-color: #fff;
+      font-size: 24px;
+      padding: 10px 20px;
+      background: white;
       border: none;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      cursor: pointer;
+      border-radius: 10px;
       display: none;
-      z-index: 10;
-    }
-    #scoreDisplay {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-family: Arial, sans-serif;
-      font-size: 20px;
-      color: white;
-      background-color: rgba(0,0,0,0.5);
-      padding: 5px 10px;
-      border-radius: 5px;
-      z-index: 10;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <div id="score">Coins: 0</div>
+  <div id="lives">❤️ x3</div>
+  <button id="retry">Retry</button>
   <canvas id="gameCanvas"></canvas>
-  <div id="scoreDisplay">Score: 0</div>
-  <button id="retryButton">Retry</button>
 
   <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-    const irysImg = new Image();
-    irysImg.src = 'irys.png';
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
 
-    const groundImg = new Image();
-    groundImg.src = 'ground.png';
-
-    const obstacleImg = new Image();
-    obstacleImg.src = 'obstacle.png';
-
-    const groundHeight = canvas.height * 0.15;
-    const gravity = 0.9;
-    let gameSpeed = 6;
-    let score = 0;
-    let gameOver = false;
+    let gravity = 1;
+    let jumpStrength = -18;
+    let gameSpeed = 5;
 
     const player = {
-      width: canvas.height * 0.12,
-      height: canvas.height * 0.12,
-      x: canvas.width * 0.1,
-      y: canvas.height - groundHeight - canvas.height * 0.12,
-      velocityY: 0,
-      isJumping: false,
-      draw() {
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-        ctx.shadowBlur = 15;
-        ctx.drawImage(irysImg, this.x, this.y, this.width, this.height);
-        ctx.restore();
-      },
-      update() {
-        this.velocityY += gravity;
-        this.y += this.velocityY;
-
-        if (this.y > canvas.height - groundHeight - this.height) {
-          this.y = canvas.height - groundHeight - this.height;
-          this.velocityY = 0;
-          this.isJumping = false;
-        }
-      },
-      jump() {
-        if (!this.isJumping) {
-          this.velocityY = -20;
-          this.isJumping = true;
-        }
-      }
+      x: 100,
+      y: height - 150,
+      width: 60,
+      height: 60,
+      dy: 0,
+      grounded: false,
+      lives: 3,
+      coins: 0
     };
 
-    const ground = {
-      draw() {
-        const pattern = ctx.createPattern(groundImg, 'repeat-x');
-        ctx.fillStyle = pattern;
-        ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-      }
-    };
+    const groundHeight = 100;
+    const keys = {};
+    const coins = [];
+    const platforms = [];
+    const retryButton = document.getElementById("retry");
 
-    let obstacles = [];
+    function drawPlayer() {
+      ctx.drawImage(irysImg, player.x, player.y, player.width, player.height);
+    }
 
-    function createObstacle() {
-      const size = canvas.height * 0.1;
-      obstacles.push({
-        x: canvas.width,
-        y: canvas.height - groundHeight - size,
-        width: size,
-        height: size,
-        draw() {
-          ctx.drawImage(obstacleImg, this.x, this.y, this.width, this.height);
-        },
-        update() {
-          this.x -= gameSpeed;
-        }
+    function drawGround() {
+      ctx.fillStyle = "#228B22";
+      ctx.fillRect(0, height - groundHeight, width, groundHeight);
+    }
+
+    function drawCoins() {
+      coins.forEach(c => {
+        ctx.drawImage(coinImg, c.x, c.y, c.size, c.size);
       });
     }
 
-    function handleObstacles() {
-      if (Math.random() < 0.015) {
-        createObstacle();
+    function drawPlatforms() {
+      ctx.fillStyle = "#8B4513";
+      platforms.forEach(p => {
+        ctx.fillRect(p.x, p.y, p.width, p.height);
+      });
+    }
+
+    function update() {
+      ctx.clearRect(0, 0, width, height);
+      drawGround();
+      drawPlatforms();
+      drawCoins();
+      drawPlayer();
+
+      // Gravity
+      player.dy += gravity;
+      player.y += player.dy;
+
+      // Check ground collision
+      if (player.y + player.height > height - groundHeight) {
+        player.y = height - groundHeight - player.height;
+        player.dy = 0;
+        player.grounded = true;
       }
 
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        const obs = obstacles[i];
-        obs.update();
-        obs.draw();
+      // Jump
+      if ((keys[" "] || keys["Touch"]) && player.grounded) {
+        player.dy = jumpStrength;
+        player.grounded = false;
+      }
 
-        if (obs.x + obs.width < 0) {
-          obstacles.splice(i, 1);
-          score++;
-          gameSpeed += 0.05;
+      // Move platforms and coins
+      platforms.forEach(p => p.x -= gameSpeed);
+      coins.forEach(c => c.x -= gameSpeed);
+
+      // Remove off-screen coins
+      coins.forEach((c, index) => {
+        if (c.x + c.size < 0) coins.splice(index, 1);
+      });
+
+      // Coin collision
+      coins.forEach((c, index) => {
+        if (player.x < c.x + c.size &&
+            player.x + player.width > c.x &&
+            player.y < c.y + c.size &&
+            player.y + player.height > c.y) {
+          coins.splice(index, 1);
+          player.coins += 1;
+          document.getElementById("score").innerText = "Coins: " + player.coins;
         }
+      });
 
-        if (
-          player.x < obs.x + obs.width &&
-          player.x + player.width > obs.x &&
-          player.y < obs.y + obs.height &&
-          player.y + player.height > obs.y
-        ) {
-          gameOver = true;
+      // Platform collision
+      platforms.forEach((p, index) => {
+        if (player.x < p.x + p.width &&
+            player.x + player.width > p.x &&
+            player.y + player.height > p.y &&
+            player.y + player.height < p.y + p.height) {
+          player.y = p.y - player.height;
+          player.dy = 0;
+          player.grounded = true;
+        }
+      });
+
+      // Add new coins/platforms
+      if (Math.random() < 0.02) {
+        coins.push({ x: width + 100, y: height - groundHeight - 80, size: 40 });
+      }
+
+      if (Math.random() < 0.01) {
+        platforms.push({ x: width + 100, y: height - groundHeight - 80, width: 100, height: 20 });
+      }
+
+      // Game over condition (falling)
+      if (player.y > height) {
+        player.lives -= 1;
+        document.getElementById("lives").innerText = "❤️ x" + player.lives;
+        player.y = height - groundHeight - player.height;
+        player.dy = 0;
+        if (player.lives <= 0) {
+          cancelAnimationFrame(gameLoop);
+          retryButton.style.display = "block";
         }
       }
+
+      requestAnimationFrame(update);
     }
 
-    function showScore() {
-      document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
-    }
+    retryButton.onclick = () => {
+      player.coins = 0;
+      player.lives = 3;
+      document.getElementById("score").innerText = "Coins: 0";
+      document.getElementById("lives").innerText = "❤️ x3";
+      retryButton.style.display = "none";
+      update();
+    };
 
-    function showRetryButton() {
-      document.getElementById('retryButton').style.display = 'block';
-    }
+    const irysImg = new Image();
+    irysImg.src = "irys.png";
 
-    function resetGame() {
-      score = 0;
-      gameOver = false;
-      gameSpeed = 6;
-      obstacles = [];
-      player.y = canvas.height - groundHeight - player.height;
-      document.getElementById('retryButton').style.display = 'none';
-      animate();
-    }
+    const coinImg = new Image();
+    coinImg.src = "https://upload.wikimedia.org/wikipedia/commons/1/11/Gold_coin_icon.png";
 
-    function animate() {
-      if (gameOver) {
-        showRetryButton();
-        return;
-      }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ground.draw();
-      player.update();
-      player.draw();
-      handleObstacles();
-      showScore();
-      requestAnimationFrame(animate);
-    }
+    window.addEventListener("keydown", e => keys[e.key] = true);
+    window.addEventListener("keyup", e => keys[e.key] = false);
+    window.addEventListener("touchstart", () => keys["Touch"] = true);
+    window.addEventListener("touchend", () => keys["Touch"] = false);
 
-    animate();
-
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') {
-        player.jump();
-      }
-    });
-
-    canvas.addEventListener('click', () => {
-      player.jump();
-    });
-
-    document.getElementById('retryButton').addEventListener('click', resetGame);
+    irysImg.onload = () => {
+      update();
+    };
   </script>
 </body>
 </html>
